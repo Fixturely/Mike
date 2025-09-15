@@ -10,6 +10,7 @@ type Config struct {
 	Database    *DatabaseConfig
 	Environment string
 	ServerPort  int
+	API         *APIConfig
 }
 
 type DatabaseConfig struct {
@@ -19,6 +20,11 @@ type DatabaseConfig struct {
 	User     string
 	Password string
 	SSLMode  bool
+}
+
+type APIConfig struct {
+	FootballAPIKey string
+	FootballAPIURL string
 }
 
 func GetConfig() *Config {
@@ -32,6 +38,10 @@ func GetConfig() *Config {
 			SSLMode:  getEnvOrDefault("DATABASE_SSL_MODE", false),
 		},
 		ServerPort: getEnvOrDefault("SERVER_PORT", 8080),
+		API: &APIConfig{
+			FootballAPIKey: getEnvOrDefault("FOOTBALL_API_KEY", ""),
+			FootballAPIURL: getEnvOrDefault("FOOTBALL_API_URL", "https://v3.football.api-sports.io"),
+		},
 	}
 	switch strings.ToLower(os.Getenv("ENV")) {
 	case "development":
