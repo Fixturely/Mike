@@ -23,6 +23,12 @@ db-migrate-down:
 	go mod tidy
 	@go run db/migrations/main.go down
 
+.PHONY: db-seed
+db-seed:
+	@echo "Running all db seeds"
+	go mod tidy
+	@go run db/seeds/main.go
+
 .PHONY: run tidy air
 run:
 	go run ./cmd/server

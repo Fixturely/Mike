@@ -1,0 +1,12 @@
+CREATE TABLE Sports (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT NULL,
+    image_url VARCHAR(500) NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    date_deleted TIMESTAMP NULL
+);
+
+CREATE INDEX idx_sports_name ON Sports (name);
