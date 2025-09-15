@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS idx_sports_name;
+DROP TABLE IF EXISTS Sports;

@@ -4,6 +4,7 @@ import (
 	"log"
 	"mike/utils"
 	"os"
+	"strconv"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -12,7 +13,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatal("Usage: go run db/migrations/main.go <up|down>")
+		log.Fatal("Usage: go run db/migrations/main.go <up|down|force>")
 	}
 
 	direction := os.Args[1]
@@ -21,8 +22,13 @@ func main() {
 		log.Println("Running up migrations")
 	case "down":
 		log.Println("Running down migrations")
+	case "force":
+		if len(os.Args) < 3 {
+			log.Fatal("Usage: go run db/migrations/main.go force <version>")
+		}
+		log.Println("Forcing migration version")
 	default:
-		log.Fatal("Invalid direction, must be up or down")
+		log.Fatal("Invalid direction, must be up, down, or force")
 	}
 	db := utils.GetDatabase()
 
@@ -55,6 +61,16 @@ func main() {
 		if err := m.Down(); err != nil && err != migrate.ErrNoChange {
 			log.Fatalf("Rolling back migrations failed: %v", err)
 		}
+	case "force":
+		versionStr := os.Args[2]
+		version, err := strconv.Atoi(versionStr)
+		if err != nil {
+			log.Fatalf("Invalid version number: %v", err)
+		}
+		if err := m.Force(version); err != nil {
+			log.Fatalf("Forcing migration version failed: %v", err)
+		}
+		log.Printf("Forced migration version to %d", version)
 	}
 
 	log.Println("Migrations completed successfully")
