@@ -3,6 +3,7 @@ module mike
 go 1.23.4
 
 require (
+	github.com/joho/godotenv v1.5.1
 	github.com/uptrace/bun v1.2.15
 	github.com/uptrace/bun/dialect/pgdialect v1.2.15
 	github.com/uptrace/bun/driver/pgdriver v1.2.15
