@@ -12,16 +12,6 @@ import (
 	"time"
 )
 
-// Cleaned shape aligned with our fixtures schema (without DB IDs yet)
-type CleanFixture struct {
-	SportID  int             `json:"sport_id"`
-	HomeTeam string          `json:"home_team"`
-	AwayTeam string          `json:"away_team"`
-	DateTime time.Time       `json:"date_time"`
-	Status   string          `json:"status"`
-	Details  json.RawMessage `json:"details"`
-}
-
 func fetchFixtures() {
 	cfg := config.GetConfig()
 	db := utils.GetDatabase()
@@ -67,15 +57,6 @@ func fetchFixtures() {
 		log.Fatalf("Error inserting fixtures: %v", err)
 	}
 
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 func main() {
