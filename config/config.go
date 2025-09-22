@@ -37,7 +37,7 @@ func GetConfig() *Config {
 			Port:     getEnvOrDefault("DATABASE_PORT", 5411),
 			SSLMode:  getEnvOrDefault("DATABASE_SSL_MODE", false),
 		},
-		ServerPort: getEnvOrDefault("SERVER_PORT", 8080),
+		ServerPort: getEnvOrDefault("SERVER_PORT", 9000),
 		API: &APIConfig{
 			FootballAPIKey: getEnvOrDefault("FOOTBALL_API_KEY", ""),
 			FootballAPIURL: getEnvOrDefault("FOOTBALL_API_URL", "https://v3.football.api-sports.io"),

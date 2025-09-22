@@ -7,6 +7,8 @@ import (
 
 	"mike/pkg/application"
 	"mike/pkg/routes/health"
+	"mike/pkg/routes/sports"
+	"mike/pkg/routes/teams"
 
 	"github.com/labstack/echo/v4"
 )
@@ -18,7 +20,17 @@ func CreateEcho() *echo.Echo {
 }
 
 func RegisterRoutes(app *application.App, e *echo.Echo) error {
+	// Add app to context for handlers
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Set("app", app)
+			return next(c)
+		}
+	})
+
 	health.RegisterRoutes(e, app)
+	sports.RegisterRoutes(e, app)
+	teams.RegisterRoutes(e, app)
 	return nil
 }
 
