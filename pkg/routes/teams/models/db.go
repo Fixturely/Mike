@@ -11,7 +11,7 @@ import (
 
 type Team struct {
 	bun.BaseModel `bun:"teams"`
-	ID            int64  `bun:"id,pk,autoincrement" json:"id"`
+	ID            int    `bun:"id,pk,autoincrement" json:"id"`
 	Name          string `bun:"name" json:"name"`
 	SportId       int    `bun:"sport_id" json:"sport_id"`
 	Description   string `bun:"description" json:"description"`
