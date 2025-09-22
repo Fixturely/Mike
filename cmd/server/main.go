@@ -22,7 +22,7 @@ func main() {
 		log.Fatalf("Failed to create server: %v\n", err)
 	}
 
-	fmt.Println("Server is running on port 8080")
+	fmt.Println("Server is running on port ", cfg.ServerPort)
 
 	// Start the server.
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
