@@ -46,6 +46,8 @@ func GetConfig() *Config {
 	switch strings.ToLower(os.Getenv("ENV")) {
 	case "development":
 		loadDevelopmentConfig(cfg)
+	case "test":
+		loadTestConfig(cfg)
 	default:
 		loadDevelopmentConfig(cfg)
 	}

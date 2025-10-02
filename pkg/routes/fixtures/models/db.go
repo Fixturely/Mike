@@ -1,6 +1,20 @@
 package models
 
-import "time"
+import (
+	"context"
+	"time"
+
+	"github.com/uptrace/bun"
+)
+
+func GetFixturesByTimeRange(db *bun.DB, startTime time.Time, endTime time.Time) ([]Fixture, error) {
+	var fixtures []Fixture
+	err := db.NewSelect().Model(&fixtures).Where("date_time >= ? AND date_time <= ?", startTime, endTime).Scan(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	return fixtures, nil
+}
 
 type Fixture struct {
 	ID       int       `bun:"id,pk,autoincrement" json:"id"`

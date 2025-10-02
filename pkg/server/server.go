@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"mike/pkg/application"
+	"mike/pkg/routes/fixtures"
 	"mike/pkg/routes/health"
 	"mike/pkg/routes/sports"
 	"mike/pkg/routes/teams"
@@ -31,6 +32,7 @@ func RegisterRoutes(app *application.App, e *echo.Echo) error {
 	health.RegisterRoutes(e, app)
 	sports.RegisterRoutes(e, app)
 	teams.RegisterRoutes(e, app)
+	fixtures.RegisterRoutes(e, app)
 	return nil
 }
 

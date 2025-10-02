@@ -1,4 +1,36 @@
 services:
+  mike-web:
+    build:
+      context: ${MIKE_DIR:-.}
+      target: development
+      args:
+        - GITHUB_PASS=${GITHUB_PASS}
+    ports:
+      - 9000:9000
+    environment:
+      - ENV=development
+      - GITHUB_PASS=${GITHUB_PASS}
+      - SERVER_PORT=9000
+      - DATABASE_HOST=mike-db
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=mike-local-db
+      - DATABASE_USER=admin
+      - DATABASE_PASSWORD=admin
+      - DATABASE_SSL_MODE=false
+      - FOOTBALL_API_KEY=${FOOTBALL_API_KEY}
+      - FOOTBALL_API_URL=${FOOTBALL_API_URL}
+    networks:
+      - my-network
+    command: >
+      sh -c "
+      make db-migrate &&
+      ENV=test make db-migrate &&
+      air -c .air.toml"
+    volumes:
+      - ${MIKE_DIR:-.}:/app
+    depends_on:
+      - db
+
   db:
     image: postgres:15
     container_name: mike-db
@@ -6,10 +38,12 @@ services:
       POSTGRES_DB: mike-local-db
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
+      EXTRA_DBS: mike_test_db
     ports:
       - 5411:5432
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./localdev/postgres/001_setup_dbs.sh:/docker-entrypoint-initdb.d/001_setup_dbs.sh
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d mike-local-db"]
       interval: 5s
