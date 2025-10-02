@@ -11,8 +11,16 @@ import (
 
 func GetFixturesByTimeRange(c echo.Context) error {
 	app := c.Get("app").(*application.App)
-	startTime := c.Param("startTime")
-	endTime := c.Param("endTime")
+	startTime := c.QueryParam("start")
+	endTime := c.QueryParam("end")
+
+	// Validate that required query parameters are provided
+	if startTime == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Missing required query parameter: start"})
+	}
+	if endTime == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Missing required query parameter: end"})
+	}
 
 	startTimeTime, err := time.Parse(time.RFC3339, startTime)
 	if err != nil {
@@ -22,6 +30,12 @@ func GetFixturesByTimeRange(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid end time"})
 	}
+
+	// Validate that start time is not after end time
+	if startTimeTime.After(endTimeTime) {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Start time cannot be after end time"})
+	}
+
 	fixtures, err := models.GetFixturesByTimeRange(app.DB, startTimeTime, endTimeTime)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get fixtures"})

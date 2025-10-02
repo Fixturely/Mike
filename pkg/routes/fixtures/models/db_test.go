@@ -10,10 +10,9 @@ import (
 	"github.com/uptrace/bun"
 )
 
-func Test_GetFixturesByTimeRange(t *testing.T) {
-	db := utils.GetDatabase()
-
-	// Clean up any existing test data
+// setupModelTestData creates test data for model tests and returns a cleanup function
+func setupModelTestData(t *testing.T, db *bun.DB) func() {
+	// Clean up any existing test data first
 	db.NewDelete().Model((*Fixture)(nil)).Where("sport_id = ?", 1).Exec(context.Background())
 	db.NewDelete().Model((*struct {
 		bun.BaseModel `bun:"teams"`
@@ -24,7 +23,7 @@ func Test_GetFixturesByTimeRange(t *testing.T) {
 		ID            int `bun:"id,pk,autoincrement"`
 	})(nil)).Where("id = ?", 1).Exec(context.Background())
 
-	// Create test data - first create sports and teams
+	// Create sport
 	sport := struct {
 		bun.BaseModel `bun:"sports"`
 		ID            int    `bun:"id,pk,autoincrement" json:"id"`
@@ -40,6 +39,7 @@ func Test_GetFixturesByTimeRange(t *testing.T) {
 	_, err := db.NewInsert().Model(&sport).Exec(context.Background())
 	assert.NoError(t, err)
 
+	// Create teams
 	teams := []struct {
 		bun.BaseModel `bun:"teams"`
 		ID            int    `bun:"id,pk,autoincrement" json:"id"`
@@ -58,28 +58,28 @@ func Test_GetFixturesByTimeRange(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	// Insert test fixtures
+	// Capture base time for deterministic test timing
+	baseTime := time.Unix(1609459200, 0).UTC() // Jan 1, 2021 00:00:00 UTC
+
+	// Insert test fixtures using deterministic times
 	fixtures := []Fixture{
 		{
 			SportID:  1,
 			TeamID1:  1,
 			TeamID2:  2,
-			DateTime: time.Now(), // Current time
-			Status:   "scheduled",
+			DateTime: baseTime, // Base time
 		},
 		{
 			SportID:  1,
 			TeamID1:  2,
 			TeamID2:  3,
-			DateTime: time.Now().Add(time.Hour * 24), // 24 hours from now
-			Status:   "scheduled",
+			DateTime: baseTime.Add(24 * time.Hour), // Base time + 24 hours
 		},
 		{
 			SportID:  1,
 			TeamID1:  3,
 			TeamID2:  4,
-			DateTime: time.Now().Add(-time.Hour * 48), // 48 hours behind current time
-			Status:   "scheduled",
+			DateTime: baseTime.Add(-48 * time.Hour), // Base time - 48 hours
 		},
 	}
 
@@ -88,6 +88,30 @@ func Test_GetFixturesByTimeRange(t *testing.T) {
 		_, err := db.NewInsert().Model(&fixture).Exec(context.Background())
 		assert.NoError(t, err)
 	}
+
+	// Return cleanup function
+	return func() {
+		db.NewDelete().Model((*Fixture)(nil)).Where("sport_id = ?", 1).Exec(context.Background())
+		db.NewDelete().Model((*struct {
+			bun.BaseModel `bun:"teams"`
+			ID            int `bun:"id,pk,autoincrement"`
+		})(nil)).Where("sport_id = ?", 1).Exec(context.Background())
+		db.NewDelete().Model((*struct {
+			bun.BaseModel `bun:"sports"`
+			ID            int `bun:"id,pk,autoincrement"`
+		})(nil)).Where("id = ?", 1).Exec(context.Background())
+	}
+}
+
+func Test_GetFixturesByTimeRange(t *testing.T) {
+	db := utils.GetDatabase()
+
+	// Setup test data and defer cleanup
+	teardown := setupModelTestData(t, db)
+	defer teardown()
+
+	// Capture base time for deterministic test timing
+	baseTime := time.Unix(1609459200, 0).UTC() // Jan 1, 2021 00:00:00 UTC
 
 	// Test cases
 	tests := []struct {
@@ -98,31 +122,31 @@ func Test_GetFixturesByTimeRange(t *testing.T) {
 		wantError            bool
 	}{
 		{
-			name:                 "test_get_fixtures_by_time_range",
-			startTime:            time.Now(),
-			endTime:              time.Now().Add(time.Hour * 24),
-			expectedFixtureCount: 1,
+			name:                 "gets fixtures from base time to base+24h",
+			startTime:            baseTime,
+			endTime:              baseTime.Add(time.Hour * 24),
+			expectedFixtureCount: 2, // base time (2021-01-01) + base+24h (2021-01-02)
 			wantError:            false,
 		},
 		{
-			name:                 "test_get_fixtures_by_time_range_2",
-			startTime:            time.Now().Add(time.Hour * 24),
-			endTime:              time.Now().Add(time.Hour * 48),
-			expectedFixtureCount: 0,
+			name:                 "gets fixture exactly at base + 24h",
+			startTime:            baseTime.Add(time.Hour * 24),
+			endTime:              baseTime.Add(time.Hour * 25), // Small range to avoid overlaps
+			expectedFixtureCount: 1,                            // Only the base+24h fixture
 			wantError:            false,
 		},
 		{
-			name:                 "test_get_fixtures_by_time_range_3",
-			startTime:            time.Now().Add(-time.Hour * 48),
-			endTime:              time.Now(),
-			expectedFixtureCount: 1,
+			name:                 "gets fixtures from base-48h to base time",
+			startTime:            baseTime.Add(-time.Hour * 48),
+			endTime:              baseTime,
+			expectedFixtureCount: 2, // base-48h (2020-12-30) + base time (2021-01-01)
 			wantError:            false,
 		},
 		{
-			name:                 "test_get_fixtures_by_time_range_4",
-			startTime:            time.Now().Add(-time.Hour * 48),
-			endTime:              time.Now().Add(time.Hour * 24),
-			expectedFixtureCount: 2,
+			name:                 "gets all fixtures spanning entire range",
+			startTime:            baseTime.Add(-time.Hour * 48),
+			endTime:              baseTime.Add(time.Hour * 24),
+			expectedFixtureCount: 3, // All three fixtures
 			wantError:            false,
 		},
 		{

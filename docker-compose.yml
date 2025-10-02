@@ -6,11 +6,11 @@ services:
       args:
         - GITHUB_PASS=${GITHUB_PASS}
     ports:
-      - 8080:8080
+      - 9000:9000
     environment:
       - ENV=development
       - GITHUB_PASS=${GITHUB_PASS}
-      - SERVER_PORT=8080
+      - SERVER_PORT=9000
       - DATABASE_HOST=mike-db
       - DATABASE_PORT=5432
       - DATABASE_NAME=mike-local-db
@@ -27,7 +27,7 @@ services:
       ENV=test make db-migrate &&
       air -c .air.toml"
     volumes:
-      - ${MIKE_DIR:-.}:/mike
+      - ${MIKE_DIR:-.}:/app
     depends_on:
       - db
 
