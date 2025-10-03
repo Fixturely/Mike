@@ -12,16 +12,10 @@ import (
 
 // setupModelTestData creates test data for model tests and returns a cleanup function
 func setupModelTestData(t *testing.T, db *bun.DB) func() {
-	// Clean up any existing test data first
-	_, _ = db.NewDelete().Model((*Fixture)(nil)).Where("sport_id IN (SELECT id FROM sports WHERE name = ?)", "Test Sport Model").Exec(context.Background())
-	_, _ = db.NewDelete().Model((*struct {
-		bun.BaseModel `bun:"teams"`
-		ID            int `bun:"id,pk,autoincrement"`
-	})(nil)).Where("sport_id IN (SELECT id FROM sports WHERE name = ?)", "Test Sport Model").Exec(context.Background())
-	_, _ = db.NewDelete().Model((*struct {
-		bun.BaseModel `bun:"sports"`
-		ID            int `bun:"id,pk,autoincrement"`
-	})(nil)).Where("name = ?", "Test Sport Model").Exec(context.Background())
+	// Truncate all tables to ensure clean state
+	_, _ = db.NewRaw("TRUNCATE TABLE fixtures CASCADE").Exec(context.Background())
+	_, _ = db.NewRaw("TRUNCATE TABLE teams CASCADE").Exec(context.Background())
+	_, _ = db.NewRaw("TRUNCATE TABLE sports CASCADE").Exec(context.Background())
 
 	// Create sport without specifying ID to let auto-increment handle it
 	sport := struct {
@@ -105,15 +99,10 @@ func setupModelTestData(t *testing.T, db *bun.DB) func() {
 
 	// Return cleanup function
 	return func() {
-		_, _ = db.NewDelete().Model((*Fixture)(nil)).Where("sport_id IN (SELECT id FROM sports WHERE name = ?)", "Test Sport Model").Exec(context.Background())
-		_, _ = db.NewDelete().Model((*struct {
-			bun.BaseModel `bun:"teams"`
-			ID            int `bun:"id,pk,autoincrement"`
-		})(nil)).Where("sport_id IN (SELECT id FROM sports WHERE name = ?)", "Test Sport Model").Exec(context.Background())
-		_, _ = db.NewDelete().Model((*struct {
-			bun.BaseModel `bun:"sports"`
-			ID            int `bun:"id,pk,autoincrement"`
-		})(nil)).Where("name = ?", "Test Sport Model").Exec(context.Background())
+		// Truncate all tables to ensure clean state
+		_, _ = db.NewRaw("TRUNCATE TABLE fixtures CASCADE").Exec(context.Background())
+		_, _ = db.NewRaw("TRUNCATE TABLE teams CASCADE").Exec(context.Background())
+		_, _ = db.NewRaw("TRUNCATE TABLE sports CASCADE").Exec(context.Background())
 	}
 }
 
