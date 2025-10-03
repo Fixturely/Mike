@@ -7,5 +7,5 @@ import (
 )
 
 func RegisterRoutes(e *echo.Echo, app *application.App) {
-	e.GET("/v1/fixtures", GetFixturesByTimeRange)
+	e.POST("/v1/fixtures/daterange", GetFixturesByTimeRange)
 }
