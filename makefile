@@ -65,4 +65,5 @@ test_ci:
 .PHONY: build
 build:
 	@echo "Building application"
+	mkdir -p build
 	go build -o build/service ./cmd/server

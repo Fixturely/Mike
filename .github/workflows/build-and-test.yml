@@ -62,16 +62,16 @@ jobs:
       DATABASE_PORT: "5432"
       DATABASE_USER: admin_test
       DATABASE_PASSWORD: admin_test
-      DATABASE_NAME: mike-test-db
+      DATABASE_NAME: mike_test_db
     services:
       mike-postgres:
         image: postgres:15.4
         env:
-          POSTGRES_DB: mike-test-db
+          POSTGRES_DB: mike_test_db
           POSTGRES_USER: admin_test
           POSTGRES_PASSWORD: admin_test
         options: >-
-          --health-cmd "pg_isready -U admin_test -d mike-test-db -p 5432"
+          --health-cmd "pg_isready -U admin_test -d mike_test_db -p 5432"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -94,10 +94,6 @@ jobs:
       - name: Install dependencies
         run: make deps
 
-      - name: Install golangci-lint
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.61.0
-
       - name: Wait for Postgres to be ready
         env:
           PGPASSWORD: admin_test
@@ -105,11 +101,11 @@ jobs:
           apt-get update -y && apt-get install -y postgresql-client
           echo "Waiting for Postgres on mike-postgres:5432..."
           for i in {1..60}; do
-            pg_isready -h mike-postgres -p 5432 -U admin_test -d mike-test-db && break
+            pg_isready -h mike-postgres -p 5432 -U admin_test -d mike_test_db && break
             echo "Postgres not ready yet... (${i}s)"
             sleep 1
           done
-          pg_isready -h mike-postgres -p 5432 -U admin_test -d mike-test-db
+          pg_isready -h mike-postgres -p 5432 -U admin_test -d mike_test_db
 
       - name: Run migrations
         run: make db-migrate
