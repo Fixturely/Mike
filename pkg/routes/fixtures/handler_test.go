@@ -38,74 +38,88 @@ func setupTestApp(t *testing.T) (*application.App, *echo.Echo) {
 // setupTestData creates test data and returns a cleanup function
 func setupTestData(t *testing.T, db *bun.DB) func() {
 	// Clean up any existing test data first
-	_, _ = db.NewDelete().Model((*models.Fixture)(nil)).Where("sport_id = ?", 1).Exec(context.Background())
+	_, _ = db.NewDelete().Model((*models.Fixture)(nil)).Where("sport_id IN (SELECT id FROM sports WHERE name = ?)", "Test Sport Handler").Exec(context.Background())
 	_, _ = db.NewDelete().Model((*struct {
 		bun.BaseModel `bun:"teams"`
 		ID            int `bun:"id,pk,autoincrement"`
-	})(nil)).Where("sport_id = ?", 1).Exec(context.Background())
+	})(nil)).Where("sport_id IN (SELECT id FROM sports WHERE name = ?)", "Test Sport Handler").Exec(context.Background())
 	_, _ = db.NewDelete().Model((*struct {
 		bun.BaseModel `bun:"sports"`
 		ID            int `bun:"id,pk,autoincrement"`
-	})(nil)).Where("id = ?", 1).Exec(context.Background())
+	})(nil)).Where("name = ?", "Test Sport Handler").Exec(context.Background())
 
-	// Create sport
+	// Create sport without specifying ID to let auto-increment handle it
 	sport := struct {
 		bun.BaseModel `bun:"sports"`
-		ID            int    `bun:"id,pk,autoincrement" json:"id"`
 		Name          string `bun:"name" json:"name"`
 		Description   string `bun:"description" json:"description"`
 		IsActive      bool   `bun:"is_active" json:"is_active"`
 	}{
-		ID:          1,
-		Name:        "Test Sport",
-		Description: "Test sport for fixtures",
+		Name:        "Test Sport Handler",
+		Description: "Test sport for fixtures handler tests",
 		IsActive:    true,
 	}
 	_, err := db.NewInsert().Model(&sport).Exec(context.Background())
 	assert.NoError(t, err, "Error inserting sport")
 
-	// Create teams
+	// Get the inserted sport ID
+	var sportID int
+	err = db.NewSelect().Model((*struct {
+		bun.BaseModel `bun:"sports"`
+		ID            int `bun:"id,pk,autoincrement"`
+	})(nil)).Where("name = ?", "Test Sport Handler").Scan(context.Background(), &sportID)
+	assert.NoError(t, err)
+
+	// Create teams without specifying IDs
 	teams := []struct {
 		bun.BaseModel `bun:"teams"`
-		ID            int    `bun:"id,pk,autoincrement" json:"id"`
 		Name          string `bun:"name" json:"name"`
 		SportId       int    `bun:"sport_id" json:"sport_id"`
 		IsActive      bool   `bun:"is_active" json:"is_active"`
 	}{
-		{ID: 1, Name: "Team 1", SportId: 1, IsActive: true},
-		{ID: 2, Name: "Team 2", SportId: 1, IsActive: true},
-		{ID: 3, Name: "Team 3", SportId: 1, IsActive: true},
-		{ID: 4, Name: "Team 4", SportId: 1, IsActive: true},
+		{Name: "Team 1 Handler", SportId: sportID, IsActive: true},
+		{Name: "Team 2 Handler", SportId: sportID, IsActive: true},
+		{Name: "Team 3 Handler", SportId: sportID, IsActive: true},
+		{Name: "Team 4 Handler", SportId: sportID, IsActive: true},
 	}
 
+	var teamIDs []int
 	for _, team := range teams {
 		_, err = db.NewInsert().Model(&team).Exec(context.Background())
 		assert.NoError(t, err, "Error inserting team")
+
+		var teamID int
+		err = db.NewSelect().Model((*struct {
+			bun.BaseModel `bun:"teams"`
+			ID            int `bun:"id,pk,autoincrement"`
+		})(nil)).Where("name = ? AND sport_id = ?", team.Name, sportID).Scan(context.Background(), &teamID)
+		assert.NoError(t, err)
+		teamIDs = append(teamIDs, teamID)
 	}
 
 	// Use deterministic base time for consistent testing
 	baseTime := time.Unix(1609459200, 0).UTC() // Jan 1, 2021 00:00:00 UTC
 
-	// Create test fixtures with deterministic times
+	// Create test fixtures with deterministic times and dynamic IDs
 	fixtures := []models.Fixture{
 		{
-			SportID:  1,
-			TeamID1:  1,
-			TeamID2:  2,
+			SportID:  sportID,
+			TeamID1:  teamIDs[0],
+			TeamID2:  teamIDs[1],
 			DateTime: baseTime, // Base time (2021-01-01 00:00:00 UTC)
 			Status:   "scheduled",
 		},
 		{
-			SportID:  1,
-			TeamID1:  2,
-			TeamID2:  3,
+			SportID:  sportID,
+			TeamID1:  teamIDs[1],
+			TeamID2:  teamIDs[2],
 			DateTime: baseTime.Add(24 * time.Hour), // Base time + 24 hours (2021-01-02 00:00:00 UTC)
 			Status:   "scheduled",
 		},
 		{
-			SportID:  1,
-			TeamID1:  3,
-			TeamID2:  4,
+			SportID:  sportID,
+			TeamID1:  teamIDs[2],
+			TeamID2:  teamIDs[3],
 			DateTime: baseTime.Add(-48 * time.Hour), // Base time - 48 hours (2020-12-30 00:00:00 UTC)
 			Status:   "scheduled",
 		},
@@ -119,15 +133,15 @@ func setupTestData(t *testing.T, db *bun.DB) func() {
 
 	// Return cleanup function
 	return func() {
-		_, _ = db.NewDelete().Model((*models.Fixture)(nil)).Where("sport_id = ?", 1).Exec(context.Background())
+		_, _ = db.NewDelete().Model((*models.Fixture)(nil)).Where("sport_id IN (SELECT id FROM sports WHERE name = ?)", "Test Sport Handler").Exec(context.Background())
 		_, _ = db.NewDelete().Model((*struct {
 			bun.BaseModel `bun:"teams"`
 			ID            int `bun:"id,pk,autoincrement"`
-		})(nil)).Where("sport_id = ?", 1).Exec(context.Background())
+		})(nil)).Where("sport_id IN (SELECT id FROM sports WHERE name = ?)", "Test Sport Handler").Exec(context.Background())
 		_, _ = db.NewDelete().Model((*struct {
 			bun.BaseModel `bun:"sports"`
 			ID            int `bun:"id,pk,autoincrement"`
-		})(nil)).Where("id = ?", 1).Exec(context.Background())
+		})(nil)).Where("name = ?", "Test Sport Handler").Exec(context.Background())
 	}
 }
 
