@@ -1,0 +1,154 @@
+name: Build and Test
+
+on:
+  push:
+    branches:
+      - '**'
+    paths-ignore:
+      - README.md
+      - 'docs/**'
+      - '*.md'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - README.md
+      - 'docs/**'
+      - '*.md'
+
+env:
+  ENV: test
+  GITHUB_USER: ${{ github.actor }}
+  GO_VERSION: '1.23.4'
+  POSTGRES_VERSION: '15'
+  GOTOOLCHAIN: auto
+
+jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    container: golang:1.23.4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.61.0
+
+      - name: Install dependencies
+        run: make deps
+
+      - name: Run linter
+        run: GOFLAGS=-buildvcs=false make lint
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    container: golang:1.23.4
+    env:
+      # Point app to the Postgres service within the job network
+      DATABASE_HOST: mike-postgres
+      DATABASE_PORT: "5432"
+      DATABASE_USER: admin_test
+      DATABASE_PASSWORD: admin_test
+      DATABASE_NAME: mike_test_db
+    services:
+      mike-postgres:
+        image: postgres:15.4
+        env:
+          POSTGRES_DB: mike_test_db
+          POSTGRES_USER: admin_test
+          POSTGRES_PASSWORD: admin_test
+        options: >-
+          --health-cmd "pg_isready -U admin_test -d mike_test_db -p 5432"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5431:5432
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: make deps
+
+      - name: Wait for Postgres to be ready
+        env:
+          PGPASSWORD: admin_test
+        run: |
+          apt-get update -y && apt-get install -y postgresql-client
+          echo "Waiting for Postgres on mike-postgres:5432..."
+          for i in {1..60}; do
+            pg_isready -h mike-postgres -p 5432 -U admin_test -d mike_test_db && break
+            echo "Postgres not ready yet... (${i}s)"
+            sleep 1
+          done
+          pg_isready -h mike-postgres -p 5432 -U admin_test -d mike_test_db
+
+      - name: Run migrations
+        run: make db-migrate
+
+      - name: Run tests
+        run: make test_ci
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    container: golang:1.23.4
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: make deps
+
+      - name: Build application
+        run: make build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mike-server-${{ github.sha }}
+          path: build/service
+          retention-days: 7
