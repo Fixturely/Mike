@@ -1,6 +1,7 @@
 package fixtures
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"mike/config"
@@ -9,7 +10,6 @@ import (
 	"mike/utils"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 
@@ -17,6 +17,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/uptrace/bun"
 )
+
+func setupTestApp(t *testing.T) (*application.App, *echo.Echo) {
+	cfg := config.GetConfig()
+	app, err := application.New(cfg)
+	assert.NoError(t, err, "Failed to create application")
+	app.DB = utils.GetDatabase()
+
+	e := echo.New()
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Set("app", app)
+			return next(c)
+		}
+	})
+	RegisterRoutes(e, app)
+	return app, e
+}
 
 // setupTestData creates test data and returns a cleanup function
 func setupTestData(t *testing.T, db *bun.DB) func() {
@@ -115,25 +132,10 @@ func setupTestData(t *testing.T, db *bun.DB) func() {
 }
 
 func Test_GetFixturesByTimeRange(t *testing.T) {
-	cfg := config.GetConfig()
-	app, err := application.New(cfg)
-	assert.NoError(t, err, "Failed to create application")
-	app.DB = utils.GetDatabase()
+	app, e := setupTestApp(t)
 
 	// Use deterministic base time for consistent testing
 	baseTime := time.Unix(1609459200, 0).UTC() // Jan 1, 2021 00:00:00 UTC
-
-	e := echo.New()
-
-	// Add app to context
-	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			c.Set("app", app)
-			return next(c)
-		}
-	})
-
-	RegisterRoutes(e, app)
 
 	// Setup test data and defer cleanup
 	teardown := setupTestData(t, app.DB)
@@ -220,27 +222,23 @@ func Test_GetFixturesByTimeRange(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			// Build URL with proper query parameter encoding
-			params := url.Values{}
-			if test.startTime != "" {
-				params.Add("start", test.startTime)
-			}
-			if test.endTime != "" {
-				params.Add("end", test.endTime)
+			// Create JSON request body
+			requestBody := TimeRangeRequest{
+				Start: test.startTime,
+				End:   test.endTime,
 			}
 
-			requestURL := "/v1/fixtures"
-			if len(params) > 0 {
-				requestURL += "?" + params.Encode()
-			}
+			jsonBody, err := json.Marshal(requestBody)
+			assert.NoError(t, err, "Should be able to marshal request body")
 
-			req := httptest.NewRequest(http.MethodGet, requestURL, nil)
+			req := httptest.NewRequest(http.MethodPost, "/v1/fixtures/daterange", bytes.NewReader(jsonBody))
+			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
 			c := e.NewContext(req, rec)
-			c.SetPath("/v1/fixtures")
+			c.SetPath("/v1/fixtures/daterange")
 			c.Set("app", app)
 
-			err := GetFixturesByTimeRange(c)
+			err = GetFixturesByTimeRange(c)
 			assert.NoError(t, err, "Handler should not return error")
 
 			assert.Equal(t, test.expectedStatus, rec.Code, "HTTP status code should match expected")
@@ -250,6 +248,83 @@ func Test_GetFixturesByTimeRange(t *testing.T) {
 				err = json.Unmarshal(rec.Body.Bytes(), &result)
 				assert.NoError(t, err, "Response should be valid JSON")
 				assert.Len(t, result, test.expectedCount, "Number of fixtures should match expected")
+			}
+		})
+	}
+}
+
+func Test_GetFixturesByTimeRange_AcceptsDifferentTimeFormats(t *testing.T) {
+	app, e := setupTestApp(t)
+
+	tests := []struct {
+		name        string
+		startTime   string
+		endTime     string
+		wantError   bool
+		description string
+	}{
+		{
+			name:        "RFC3339 format",
+			startTime:   "2021-01-01T00:00:00Z",
+			endTime:     "2021-01-02T00:00:00Z",
+			wantError:   false,
+			description: "accepts RFC3339 format",
+		},
+		{
+			name:        "PostgreSQL timestamp format",
+			startTime:   "2021-01-01 00:00:00.000000",
+			endTime:     "2021-01-02 00:00:00.000000",
+			wantError:   false,
+			description: "accepts PostgreSQL timestamp format",
+		},
+		{
+			name:        "Simple datetime format",
+			startTime:   "2021-01-01 00:00:00",
+			endTime:     "2021-01-02 00:00:00",
+			wantError:   false,
+			description: "accepts simple datetime format",
+		},
+		{
+			name:        "Date only format",
+			startTime:   "2021-01-01",
+			endTime:     "2021-01-02",
+			wantError:   false,
+			description: "accepts date only format",
+		},
+		{
+			name:        "Invalid format",
+			startTime:   "invalid-date",
+			endTime:     "2021-01-02",
+			wantError:   true,
+			description: "rejects invalid format",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// Create JSON request body
+			requestBody := TimeRangeRequest{
+				Start: test.startTime,
+				End:   test.endTime,
+			}
+
+			jsonBody, err := json.Marshal(requestBody)
+			assert.NoError(t, err, "Should be able to marshal request body")
+
+			req := httptest.NewRequest(http.MethodPost, "/v1/fixtures/daterange", bytes.NewReader(jsonBody))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			c.SetPath("/v1/fixtures/daterange")
+			c.Set("app", app)
+
+			err = GetFixturesByTimeRange(c)
+
+			if test.wantError {
+				assert.Equal(t, http.StatusBadRequest, rec.Code, test.description)
+			} else {
+				assert.NoError(t, err, test.description)
+				assert.Equal(t, http.StatusOK, rec.Code, test.description)
 			}
 		})
 	}
