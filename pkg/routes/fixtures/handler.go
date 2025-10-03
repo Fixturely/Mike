@@ -9,6 +9,30 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+var timeFormats = []string{
+	time.RFC3339,
+	time.RFC3339Nano,
+	"2006-01-01T15:04:05Z",
+	"2006-01-01T15:04:05.999999Z",
+	"2006-01-01 15:04:05.999999",
+	"2006-01-01 15:04:05",
+	"2006-01-01",
+}
+
+// parseFlexibleTime tries to parse a time string using multiple common formats
+func parseFlexibleTime(timeStr string) (time.Time, error) {
+	for _, format := range timeFormats {
+		if t, err := time.Parse(format, timeStr); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, &time.ParseError{
+		Layout:  "multiple formats",
+		Value:   timeStr,
+		Message: "unable to parse time with any supported format",
+	}
+}
+
 // TimeRangeRequest represents the JSON request body for date range queries
 type TimeRangeRequest struct {
 	Start string `json:"start"`
@@ -35,39 +59,15 @@ func GetFixturesByTimeRange(c echo.Context) error {
 	startTime := req.Start
 	endTime := req.End
 
-	// Try multiple date/time formats
-	timeFormats := []string{
-		time.RFC3339,                  // "2006-01-02T15:04:05Z07:00"
-		time.RFC3339Nano,              // "2006-01-02T15:04:05.999999999Z07:00"
-		"2006-01-02T15:04:05Z",        // "2006-01-02T15:04:05Z"
-		"2006-01-02T15:04:05.999999Z", // "2006-01-02T15:04:05.999999Z"
-		"2006-01-02 15:04:05.999999",  // "2006-01-02 15:04:05.999999" (postgres format)
-		"2006-01-02 15:04:05",         // "2006-01-02 15:04:05"
-		"2006-01-02",                  // "2006-01-02" (date only)
-	}
-
-	var startTimeTime time.Time
-	var endTimeTime time.Time
-
 	// Parse start time
-	for _, format := range timeFormats {
-		if t, err := time.Parse(format, startTime); err == nil {
-			startTimeTime = t
-			break
-		}
-	}
-	if startTimeTime.IsZero() {
+	startTimeTime, err := parseFlexibleTime(startTime)
+	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid start time format"})
 	}
 
 	// Parse end time
-	for _, format := range timeFormats {
-		if t, err := time.Parse(format, endTime); err == nil {
-			endTimeTime = t
-			break
-		}
-	}
-	if endTimeTime.IsZero() {
+	endTimeTime, err := parseFlexibleTime(endTime)
+	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid end time format"})
 	}
 

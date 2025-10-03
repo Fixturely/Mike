@@ -18,6 +18,23 @@ import (
 	"github.com/uptrace/bun"
 )
 
+func setupTestApp(t *testing.T) (*application.App, *echo.Echo) {
+	cfg := config.GetConfig()
+	app, err := application.New(cfg)
+	assert.NoError(t, err, "Failed to create application")
+	app.DB = utils.GetDatabase()
+
+	e := echo.New()
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Set("app", app)
+			return next(c)
+		}
+	})
+	RegisterRoutes(e, app)
+	return app, e
+}
+
 // setupTestData creates test data and returns a cleanup function
 func setupTestData(t *testing.T, db *bun.DB) func() {
 	// Clean up any existing test data first
@@ -115,25 +132,10 @@ func setupTestData(t *testing.T, db *bun.DB) func() {
 }
 
 func Test_GetFixturesByTimeRange(t *testing.T) {
-	cfg := config.GetConfig()
-	app, err := application.New(cfg)
-	assert.NoError(t, err, "Failed to create application")
-	app.DB = utils.GetDatabase()
+	app, e := setupTestApp(t)
 
 	// Use deterministic base time for consistent testing
 	baseTime := time.Unix(1609459200, 0).UTC() // Jan 1, 2021 00:00:00 UTC
-
-	e := echo.New()
-
-	// Add app to context
-	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			c.Set("app", app)
-			return next(c)
-		}
-	})
-
-	RegisterRoutes(e, app)
 
 	// Setup test data and defer cleanup
 	teardown := setupTestData(t, app.DB)
@@ -252,22 +254,7 @@ func Test_GetFixturesByTimeRange(t *testing.T) {
 }
 
 func Test_GetFixturesByTimeRange_AcceptsDifferentTimeFormats(t *testing.T) {
-	cfg := config.GetConfig()
-	app, err := application.New(cfg)
-	assert.NoError(t, err, "Failed to create application")
-	app.DB = utils.GetDatabase()
-
-	e := echo.New()
-
-	// Add app to context
-	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			c.Set("app", app)
-			return next(c)
-		}
-	})
-
-	RegisterRoutes(e, app)
+	app, e := setupTestApp(t)
 
 	tests := []struct {
 		name        string
