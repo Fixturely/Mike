@@ -38,12 +38,12 @@ func setupTestApp(t *testing.T) (*application.App, *echo.Echo) {
 // setupTestData creates test data and returns a cleanup function
 func setupTestData(t *testing.T, db *bun.DB) func() {
 	// Clean up any existing test data first
-	db.NewDelete().Model((*models.Fixture)(nil)).Where("sport_id = ?", 1).Exec(context.Background())
-	db.NewDelete().Model((*struct {
+	_, _ = db.NewDelete().Model((*models.Fixture)(nil)).Where("sport_id = ?", 1).Exec(context.Background())
+	_, _ = db.NewDelete().Model((*struct {
 		bun.BaseModel `bun:"teams"`
 		ID            int `bun:"id,pk,autoincrement"`
 	})(nil)).Where("sport_id = ?", 1).Exec(context.Background())
-	db.NewDelete().Model((*struct {
+	_, _ = db.NewDelete().Model((*struct {
 		bun.BaseModel `bun:"sports"`
 		ID            int `bun:"id,pk,autoincrement"`
 	})(nil)).Where("id = ?", 1).Exec(context.Background())
@@ -119,12 +119,12 @@ func setupTestData(t *testing.T, db *bun.DB) func() {
 
 	// Return cleanup function
 	return func() {
-		db.NewDelete().Model((*models.Fixture)(nil)).Where("sport_id = ?", 1).Exec(context.Background())
-		db.NewDelete().Model((*struct {
+		_, _ = db.NewDelete().Model((*models.Fixture)(nil)).Where("sport_id = ?", 1).Exec(context.Background())
+		_, _ = db.NewDelete().Model((*struct {
 			bun.BaseModel `bun:"teams"`
 			ID            int `bun:"id,pk,autoincrement"`
 		})(nil)).Where("sport_id = ?", 1).Exec(context.Background())
-		db.NewDelete().Model((*struct {
+		_, _ = db.NewDelete().Model((*struct {
 			bun.BaseModel `bun:"sports"`
 			ID            int `bun:"id,pk,autoincrement"`
 		})(nil)).Where("id = ?", 1).Exec(context.Background())
