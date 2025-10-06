@@ -66,4 +66,4 @@ test_ci:
 build:
 	@echo "Building application"
 	mkdir -p build
-	go build -o build/service ./cmd/server
+	GOFLAGS=-buildvcs=false go build -o build/service ./cmd/server
