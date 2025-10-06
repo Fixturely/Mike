@@ -55,12 +55,12 @@ lint:
 .PHONY: test
 test:
 	@echo "Running tests"
-	GOFLAGS=-buildvcs=false go test -v ./pkg/... ./cmd/... ./config/... ./db/... ./utils/...
+	GOFLAGS=-buildvcs=false go test -v -p 1 ./pkg/... ./cmd/... ./config/... ./db/... ./utils/...
 
 .PHONY: test_ci
 test_ci:
 	@echo "Running tests with coverage"
-	GOFLAGS=-buildvcs=false go test -v -coverprofile=coverage.out ./pkg/... ./cmd/... ./config/... ./db/... ./utils/...
+	GOFLAGS=-buildvcs=false go test -v -p 1 -coverprofile=coverage.out ./pkg/... ./cmd/... ./config/... ./db/... ./utils/...
 
 .PHONY: build
 build:
