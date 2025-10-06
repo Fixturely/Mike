@@ -38,3 +38,32 @@ tidy:
 
 air:
 	air -c air.toml
+
+# DEVELOPMENT COMMANDS
+
+.PHONY: deps
+deps:
+	@echo "Installing dependencies"
+	go mod download
+	go mod tidy
+
+.PHONY: lint
+lint:
+	@echo "Running linter"
+	golangci-lint run ./cmd/... ./config/... ./db/... ./pkg/... ./utils/...
+
+.PHONY: test
+test:
+	@echo "Running tests"
+	GOFLAGS=-buildvcs=false go test -v -p 1 ./pkg/... ./cmd/... ./config/... ./db/... ./utils/...
+
+.PHONY: test_ci
+test_ci:
+	@echo "Running tests with coverage"
+	GOFLAGS=-buildvcs=false go test -v -p 1 -coverprofile=coverage.out ./pkg/... ./cmd/... ./config/... ./db/... ./utils/...
+
+.PHONY: build
+build:
+	@echo "Building application"
+	mkdir -p build
+	GOFLAGS=-buildvcs=false go build -o build/service ./cmd/server
